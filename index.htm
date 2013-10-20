@@ -13,7 +13,7 @@
             font-size: 100%;
             position: relative;
         }
-        #canvas{
+        canvas{
             display: block;
             margin: 2em auto 0;
             cursor: pointer;
@@ -54,11 +54,8 @@
             -o-transition: max-height 0.4s ease-out;
             transition: max-height 0.4s ease-out;
         }
-        #options:target{
+        #options.expanded{
             max-height: 25em;
-        }
-        #options:target .close{
-            display: block;
         }
         .close span{
             position: absolute;
@@ -123,22 +120,92 @@
                 <input name="renderStyle" type="radio" value="0" checked="checked">
                 Outline Circles
             </label>
-            <a href="#top" class="no-select close"><span>&times;</span></a>
+            <label class="no-select">
+                Line Width
+                <input name="lineWidth" type="number" value="5" min="3" max="550" interval="5">
+            </label>
+
         </div>
-        <a href="#options" class="no-select open">Options</a>
+        <button id="menuButton" tabindex="1" class="no-select open">Options</button>
     </div>
 
-    <canvas id="canvas" width="600" height="600" class="no-select">
+    <canvas id="flower-of-life" width="600" height="600" class="no-select">
         Ummm. Your browser doesn't support canvas :(
     </canvas>
 
     <script>
-        var randomizeColors = false;
-        var randomizeRotation = false;
-        var renderStyle = 0;
-        var lineWidth = 3;
+    (function(window, document, undefined){
+        var _F_={
+            settings : {
+                hue : 250,
+                lineWidth : 5,
+                randomizeColors : false,
+                randomizeRotation : false,
+                renderStyle : 0
+            }
+        };
 
-        /* We need to convert degrees to radians because that is what
+        _F_.optionsPanel = document.getElementById('options');
+        _F_.menuButton = document.getElementById('menuButton');
+        _F_.canvas = document.getElementById( 'flower-of-life' )
+        _F_.context = _F_.canvas.getContext( '2d' );
+
+
+        /**
+         * Utility function to get a particular setting
+         * @param string - refering to the property to retrieve
+         * @return string/undefined - returns value if requested property exists, returns undefined if it doesn't
+         */
+        _F_.get = function ( prop ){
+            if ( _F_.settings.hasOwnProperty(prop)){
+                return _F_.settings[prop];
+            } else {
+                return undefined;
+            }
+        }
+
+
+        /**
+         * Utility function to set a particular setting. Any value, except undefined, is permitted to be assigned to a property
+         * @param string - refering to the property to set
+         * @param string - contains the value to be assigned to the property
+         * @return bool/undefined - returns true if requested property exists, returns undefined if either the prperty doesn't exist or if the value is undefined.
+         */
+        _F_.set = function ( prop, value ){
+            if ( value !== undefined && _F_.settings.hasOwnProperty(prop)){
+                _F_.settings[prop] = value;
+                return true;
+            } else {
+                return undefined;
+            }
+        }
+
+        /**
+         * Utitlity function that handles form elements and assigns them to the appropriate properties
+         * @param object - event information
+         */
+        _F_.formHandler = function ( event ){
+            if (event.target && event.target.name){
+                if (event.target.type === 'checkbox'){
+                    _F_.set( event.target.name, event.target.checked );
+                } else if (event.target.type === 'radio'){
+                    _F_.set( event.target.name, event.target.value );
+                } else if (event.target.type === 'number'){
+                    _F_.set( event.target.name, event.target.value );
+                } else if (event.target.type === 'text'){
+                    _F_.set( event.target.name, event.target.value );
+                }
+
+                // @todo - figure out how to add event listener
+                _F_.drawPattern();
+
+            }
+        }
+
+
+
+
+        /** We need to convert degrees to radians because that is what
          * Math.sin() accepts. A radian is the angle generated in an
          * arc where the radius and the arc have the same length.
          * To calculate the circumference of of a circle, one uses the
@@ -154,142 +221,145 @@
          *
          * or the reverse ratio 1 radian = 180/PI deg
          *
+         * @param float - degrees to convert to radians
+         * @return float - radian value
          */
-        function degToRad( deg ){
+        _F_.degToRad = function ( deg ){
             return ( deg * Math.PI / 180 );
         }
 
         /**
          * This just returns a random integer within the specified range
          */
-        function randomInt( min, max ) {
+        _F_.randomInt = function ( min, max ) {
             return Math.floor( Math.random() * ( max - min + 1 ) + min );
         }
 
         /**
          * Returns a color
          */
-        function randomColor(){
-            var hue = randomizeColors ? randomInt( 0, 360 ) : 250 ;
+        _F_.randomColor = function (){
+            var hue = _F_.get('randomizeColors') ? _F_.randomInt( 0, 360 ) : 250 ;
             return 'hsla(' + hue + ', 80%, 50%, .4)'
         }
 
-        /**
-         * Returns the line's width
-         * @todo expose in options
-         */
-        function getLineWidth(){
-            return lineWidth;
-        }
 
         /**
          * Render the according to the style
          */
-        function doRender(){
-            if ( renderStyle == 1 ){
-                context.fill();
+        _F_.render = function (){
+            if ( _F_.get('renderStyle') === '1' ){
+                _F_.context.fill();
             } else {
-                context.stroke();
+                _F_.context.stroke();
             }
         }
 
         /**
          * This creates the circles on the the canvas
          */
-        function doCircle( x, y, r ){
-            context.beginPath();
-            context.arc( x, y, r, 0, degToRad( 360 ), false );
-            context.fillStyle = randomColor();
-            context.lineWidth = getLineWidth();
-            context.strokeStyle = randomColor();
+        _F_.doCircle = function ( x, y, r ){
+            _F_.context.beginPath();
+            _F_.context.arc( x, y, ( r > 0 ? r : 1 ) , 0, _F_.degToRad( 360 ), false );
+            _F_.context.fillStyle = _F_.randomColor();
+            _F_.context.lineWidth = _F_.get('lineWidth');
+            _F_.context.strokeStyle = _F_.randomColor();
 
-            doRender();
+            _F_.render();
 
         }
-
-        var c = document.getElementById( 'canvas' );
-        var context = c.getContext( '2d' );
 
         /**
          * Executes a sequence of functions to render the pattern
          */
-        function doPattern(){
-            var w = c.width;
-            var h = c.height;
+        _F_.drawPattern = function (){
+            var w = _F_.canvas.width;
+            var h = _F_.canvas.height;
             var x = w / 2; // half the canvas's width - center x
             var y = h / 2; // half the canvas's height - center y
-            var r = ( x > y ? y : x ) / 2 - lineWidth; // set the radius to half the smallest dimension of the canvas
-            var a = randomizeRotation ? randomInt( 0, 360 ) : 30;  // rotational offset in degrees
+            var r = ( x > y ? y : x ) / 4; //- _F_.get('lineWidth') / 2; // set the radius to half the smallest dimension of the canvas minus half the lineWidth
+            var a = _F_.get('randomizeRotation') ? _F_.randomInt( 0, 360 ) : 30;  // rotational offset in degrees
 
             // first clear canvas
-            context.clearRect( 0, 0, w, h );
+            _F_.context.clearRect( 0, 0, w, h );
 
             // center circle
-            doCircle( x, y, r );
+            _F_.doCircle( x, y, r );
 
             for (var i = 0; i < 6 ; i++ ){
-                doCircle(
-                    ( x + r * Math.sin( degToRad( i * 60 + a ) ) ),
-                    ( y + r * Math.cos( degToRad( i * 60 + a ) ) ),
+                _F_.doCircle(
+                    ( x + r * Math.sin( _F_.degToRad( i * 60 + a ) ) ),
+                    ( y + r * Math.cos( _F_.degToRad( i * 60 + a ) ) ),
                     r
                 );
             }
+            return false;
         }
 
-        /**
-         * adding event listener to recreate the pattern on touch start and mousedown
-         */
-        c.addEventListener( 'mousedown', doPattern, false );
-        c.addEventListener( 'touchstart', doPattern, false );
 
         /**
          * Adjust the canvas' size relative to the window's dimensino
          */
-        function adjustCanvasDimensions(){
+        _F_.adjustCanvasDimensions = function (){
             var w = window.innerWidth;
             var h = window.innerHeight;
 
-            c.width = w *.8;
-            c.height = h *.8;
+            _F_.canvas.width = w *.8;
+            _F_.canvas.height = h *.8;
 
-            doPattern();
+            _F_.drawPattern();
         }
+
+
+        /**
+         * Toggle the menu for quicker feedback
+         */
+        _F_.toggleMenu = function (){
+            _F_.optionsPanel.classList.toggle('expanded');
+        }
+
+
+
+    /** EVENT LISTENERS **/
+
+        /**
+         * adding event listener to recreate the pattern on touch start and mousedown
+         */
+        _F_.canvas.addEventListener( 'mousedown', _F_.drawPattern, false );
+
 
         /**
          * Register canvas resizing event listener
          */
-        window.addEventListener('resize', adjustCanvasDimensions, false);
-
-        /**
-         * Modifies the Option properties
-         */
-        function getOptions(e){
-            if (e.target && e.target.name){
-                var name = e.target.name;
-                if (e.target.type === 'checkbox'){
-                    window[name] = e.target.checked;
-                }
-                if (e.target.type === 'radio'){
-                    window[name] = e.target.value;
-                }
-                doPattern();
-            }
-        }
+        window
+            .addEventListener('resize', _F_.adjustCanvasDimensions, false);
 
         /**
          * add event listener to the Options container
          */
-        (document.getElementById('options'))
-            .addEventListener('click', getOptions, false );
+        _F_.optionsPanel
+            .addEventListener('change', _F_.formHandler, false );
+
+        _F_.menuButton
+            .addEventListener('click', _F_.toggleMenu, false )
+
+        window
+            .addEventListener('formHandler', _F_.drawPattern, false );
 
         /**
-         * Initial call to adjust canvas dimensions and render the pattern
+         * Initialize _F_
          */
-        adjustCanvasDimensions();
+        _F_.init = function (){
+            _F_.adjustCanvasDimensions();
+
+        }
+        _F_.init();
+
+    })( window, document );
 
     </script>
 
-    <small class="no-select">v0.2 Oct 2013 by mrkiffie</small>
+    <small class="no-select">v0.3 Oct 2013 by mrkiffie</small>
 
 </body>
 </html>
