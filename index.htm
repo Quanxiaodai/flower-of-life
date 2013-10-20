@@ -2,91 +2,141 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width">
     <title>Canvas Playground - Flower of Life - mrkiffie.com</title>
 
     <style>
         body{
+            color:#444;
             margin: 0 auto;
             font-family: sans-serif;
             font-size: 100%;
             position: relative;
         }
         #canvas{
-            margin: 2%;
+            display: block;
+            margin: 2em auto 0;
             cursor: pointer;
+            outline: none;
         }
-        .no-js #controls{
-            display: none;
+        a{
+            color: #444;
+            text-decoration: none;
+            outline: none;
         }
-        #controls{
-            position: absolute;
-            top: 0;
+        .menu{
+            padding: 0;
+            position: relative;
+            background: #eee;
+            border-bottom: .2em inset #ddd;
+        }
+        .open{
+            display: block;
             padding: 1em;
         }
-        .control-group{
+        .close{
+            position: absolute;
+            display: none;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1em;
+            padding: 1em;
+            z-index: 1;
+            text-align: right;
+        }
+        #options{
+            max-height: 0;
+            overflow: hidden;
+            -webkit-transition: max-height 0.4s ease-out;
+            -moz-transition: max-height 0.4s ease-out;
+            -ms-transition: max-height 0.4s ease-out;
+            -o-transition: max-height 0.4s ease-out;
+            transition: max-height 0.4s ease-out;
+        }
+        #options:target{
+            max-height: 25em;
+        }
+        #options:target .close{
+            display: block;
+        }
+        .close span{
+            position: absolute;
+            bottom: 1em;
+            right: 1em;
+            display: inline-block;
+            border-radius: 50%;
+            padding: .5em;
+            line-height: .5;
+            text-align: center;
+        }
+        .close span:hover,
+        .close span:focus,
+        .close span:active{
+            background: rgba(200,200,200,.6);
+        }
+        .option-group{
             display: block;
             position: relative;
         }
-        input{
-            position: absolute;
-            top: 1.2em;
-            left: 1.2em;
-            z-index: 1;
-            cursor: pointer;
-        }
         label{
             display: inline-block;
-            background: hsla(250, 10%, 50%, .4);
-            padding: .5em .8em .5em 2.2em;
+            background: rgba(200,200,200,.6);
+            padding: .5em .8em .5em .4em;
             margin: .5em;
             cursor: pointer;
             border-radius: .3em;
-            color: #fff;
+            color: #444;
+        }
+        .no-select{
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
         }
-        input:checked + label{
-            background: hsla(250, 80%, 50%, .4);
+        small{
+            font-size: 70%;
+            float:right;
+            padding: 1em;
         }
-        input:focus + label{
-            outline: 4px dotted #000;
-        }
+
     </style>
 
 </head>
-<body class="no-js">
-    <script>
-        var b = document.getElementsByTagName('body')[0];
-        b.classList.toggle('no-js');
-    </script>
-    <div id="controls">
-        <div class="control-group">
-            <input name="randomizeColors" id="randomizeColors" type="checkbox">
-            <label for="randomizeColors">Randomize Hue</label>
+<body id="top">
+
+    <div class="menu">
+        <div id="options" >
+            <label class="no-select">
+                <input name="randomizeColors" type="checkbox">
+                Randomize Hue
+            </label>
+            <label class="no-select">
+                <input name="randomizeRotation" type="checkbox">
+                Randomize Rotation
+            </label>
+            <label class="no-select">
+                <input name="renderStyle" type="radio" value="1">
+                Filled Circles
+            </label>
+            <label class="no-select">
+                <input name="renderStyle" type="radio" value="0" checked="checked">
+                Outline Circles
+            </label>
+            <a href="#top" class="no-select close"><span>&times;</span></a>
         </div>
-        <div class="control-group">
-            <input name="randomizeAngularOffset" id="randomizeAngularOffset" type="checkbox">
-            <label for="randomizeAngularOffset">Randomize Angular Offset</label>
-        </div>
+        <a href="#options" class="no-select open">Options</a>
     </div>
 
-    <canvas id="canvas" width="600" height="600">
+    <canvas id="canvas" width="600" height="600" class="no-select">
         Ummm. Your browser doesn't support canvas :(
-
     </canvas>
-    <script>
-        function isCanvasSupported(){
-          var elem = document.createElement('canvas');
-          return !!(elem.getContext && elem.getContext('2d'));
-        }
-        if (!isCanvasSupported()){
-            (document.getElementById('controls')).style.display = 'none';
-        }
 
+    <script>
         var randomizeColors = false;
-        var randomizeAngularOffset = false;
+        var randomizeRotation = false;
+        var renderStyle = 0;
+        var lineWidth = 3;
 
         /* We need to convert degrees to radians because that is what
          * Math.sin() accepts. A radian is the angle generated in an
@@ -109,7 +159,6 @@
             return ( deg * Math.PI / 180 );
         }
 
-
         /**
          * This just returns a random integer within the specified range
          */
@@ -125,6 +174,24 @@
             return 'hsla(' + hue + ', 80%, 50%, .4)'
         }
 
+        /**
+         * Returns the line's width
+         * @todo expose in options
+         */
+        function getLineWidth(){
+            return lineWidth;
+        }
+
+        /**
+         * Render the according to the style
+         */
+        function doRender(){
+            if ( renderStyle == 1 ){
+                context.fill();
+            } else {
+                context.stroke();
+            }
+        }
 
         /**
          * This creates the circles on the the canvas
@@ -133,23 +200,26 @@
             context.beginPath();
             context.arc( x, y, r, 0, degToRad( 360 ), false );
             context.fillStyle = randomColor();
-            context.fill();
-            //context.lineWidth = 10;
-            //context.strokeStyle = randomColor()
-            //context.stroke();
+            context.lineWidth = getLineWidth();
+            context.strokeStyle = randomColor();
+
+            doRender();
+
         }
 
         var c = document.getElementById( 'canvas' );
         var context = c.getContext( '2d' );
 
-
+        /**
+         * Executes a sequence of functions to render the pattern
+         */
         function doPattern(){
             var w = c.width;
             var h = c.height;
             var x = w / 2; // half the canvas's width - center x
             var y = h / 2; // half the canvas's height - center y
-            var r = ( x > y ? y : x ) / 3; // set the radius to half the smallest dimension of the canvas
-            var a = randomizeAngularOffset ? randomInt( 0, 360 ) : 0;  // rotational offset in degrees
+            var r = ( x > y ? y : x ) / 2 - lineWidth; // set the radius to half the smallest dimension of the canvas
+            var a = randomizeRotation ? randomInt( 0, 360 ) : 30;  // rotational offset in degrees
 
             // first clear canvas
             context.clearRect( 0, 0, w, h );
@@ -166,40 +236,60 @@
             }
         }
 
-        // adding event listener to recreate the pattern on click
-        c.addEventListener( 'click', doPattern, false );
+        /**
+         * adding event listener to recreate the pattern on touch start and mousedown
+         */
+        c.addEventListener( 'mousedown', doPattern, false );
+        c.addEventListener( 'touchstart', doPattern, false );
 
+        /**
+         * Adjust the canvas' size relative to the window's dimensino
+         */
         function adjustCanvasDimensions(){
             var w = window.innerWidth;
             var h = window.innerHeight;
 
-            c.width = w *.96;
-            c.height = h *.96;
+            c.width = w *.8;
+            c.height = h *.8;
 
             doPattern();
         }
 
-        adjustCanvasDimensions();
-
+        /**
+         * Register canvas resizing event listener
+         */
         window.addEventListener('resize', adjustCanvasDimensions, false);
 
-
-        // controls
-        function boxChecked(e){
-            if (e.target && e.target.id){
-                var id = e.target.id;
-                window[id] = document.getElementById(id).checked;
+        /**
+         * Modifies the Option properties
+         */
+        function getOptions(e){
+            if (e.target && e.target.name){
+                var name = e.target.name;
+                if (e.target.type === 'checkbox'){
+                    window[name] = e.target.checked;
+                }
+                if (e.target.type === 'radio'){
+                    window[name] = e.target.value;
+                }
                 doPattern();
             }
-
         }
 
-        (document.getElementById('randomizeColors'))
-            .addEventListener('click', boxChecked, false );
-        (document.getElementById('randomizeAngularOffset'))
-            .addEventListener('click', boxChecked, false );
+        /**
+         * add event listener to the Options container
+         */
+        (document.getElementById('options'))
+            .addEventListener('click', getOptions, false );
+
+        /**
+         * Initial call to adjust canvas dimensions and render the pattern
+         */
+        adjustCanvasDimensions();
 
     </script>
+
+    <small class="no-select">v0.2 Oct 2013 by mrkiffie</small>
 
 </body>
 </html>
